@@ -26,10 +26,19 @@ const transactionSlice = createSlice({
             state.error = action.payload;
             state.loading = false;
         },
+        updateTransactionInState: (state, action) => {
+            const index = state.transactions.findIndex(t => t.id === action.payload.id);
+            if (index !== -1) {
+                state.transactions[index] = action.payload;
+            }
+        },
+        removeTransactionFromState: (state, action) => {
+            state.transactions = state.transactions.filter(t => t.id !== action.payload);
+        },
     },
 });
 
-export const { setTransactions, addTransactionToState, setLoading, setError } = transactionSlice.actions;
+export const { setTransactions, addTransactionToState, setLoading, setError, updateTransactionInState, removeTransactionFromState } = transactionSlice.actions;
 
 // Thunks
 export const loadTransactions = () => async (dispatch) => {
@@ -51,6 +60,30 @@ export const addTransaction = (transaction) => async (dispatch, getState) => {
         dispatch(addTransactionToState(transaction));
     } catch (e) {
         dispatch(setError("Failed to save transaction"));
+    }
+};
+
+export const updateTransaction = (updatedTransaction) => async (dispatch, getState) => {
+    try {
+        const { transactions } = getState().transactions;
+        const newTransactions = transactions.map(t =>
+            t.id === updatedTransaction.id ? updatedTransaction : t
+        );
+        await AsyncStorage.setItem('@transactions', JSON.stringify(newTransactions));
+        dispatch(updateTransactionInState(updatedTransaction));
+    } catch (e) {
+        dispatch(setError("Failed to update transaction"));
+    }
+};
+
+export const deleteTransaction = (id) => async (dispatch, getState) => {
+    try {
+        const { transactions } = getState().transactions;
+        const newTransactions = transactions.filter(t => t.id !== id);
+        await AsyncStorage.setItem('@transactions', JSON.stringify(newTransactions));
+        dispatch(removeTransactionFromState(id));
+    } catch (e) {
+        dispatch(setError("Failed to delete transaction"));
     }
 };
 

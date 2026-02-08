@@ -1,15 +1,19 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { loadTransactions } from '../store/transactionSlice';
+import { loadTransactions, updateTransaction, deleteTransaction } from '../store/transactionSlice';
 import { logout } from '../services/authService';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import EditAmountModal from '../components/EditAmountModal';
+import { Alert } from 'react-native';
 
 const DashboardScreen = ({ navigation }) => {
     const dispatch = useDispatch();
     const { transactions, loading } = useSelector(state => state.transactions);
     const { user } = useSelector(state => state.auth);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [selectedTransaction, setSelectedTransaction] = useState(null);
 
     useEffect(() => {
         dispatch(loadTransactions());
@@ -26,6 +30,32 @@ const DashboardScreen = ({ navigation }) => {
     };
 
     const { income, expense, balance } = calculateTotals();
+
+    const handleEdit = (transaction) => {
+        setSelectedTransaction(transaction);
+        setModalVisible(true);
+    };
+
+    const handleDelete = (id) => {
+        Alert.alert(
+            "Delete Transaction",
+            "Are you sure you want to delete this transaction?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => dispatch(deleteTransaction(id))
+                }
+            ]
+        );
+    };
+
+    const handleSaveTransaction = (updatedTransaction) => {
+        dispatch(updateTransaction(updatedTransaction));
+        setModalVisible(false);
+        setSelectedTransaction(null);
+    };
 
     return (
         <View style={styles.container}>
@@ -86,9 +116,19 @@ const DashboardScreen = ({ navigation }) => {
                                     <Text style={styles.transDate}>{new Date(t.date).toLocaleDateString()}</Text>
                                 </View>
                             </View>
-                            <Text style={[styles.transAmount, { color: t.type === 'income' ? '#388e3c' : '#d32f2f' }]}>
-                                {t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}
-                            </Text>
+                            <View style={styles.transactionRight}>
+                                <Text style={[styles.transAmount, { color: t.type === 'income' ? '#388e3c' : '#d32f2f' }]}>
+                                    {t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}
+                                </Text>
+                                <View style={styles.actionButtons}>
+                                    <TouchableOpacity onPress={() => handleEdit(t)} style={styles.iconButton}>
+                                        <Ionicons name="create-outline" size={20} color="#4c669f" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => handleDelete(t.id)} style={styles.iconButton}>
+                                        <Ionicons name="trash-outline" size={20} color="#F44336" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
                         </View>
                     ))
                 )}
@@ -109,6 +149,13 @@ const DashboardScreen = ({ navigation }) => {
                     <Ionicons name="add" size={30} color="white" />
                 </TouchableOpacity>
             </View>
+
+            <EditAmountModal
+                visible={modalVisible}
+                onClose={() => setModalVisible(false)}
+                onSave={handleSaveTransaction}
+                transaction={selectedTransaction}
+            />
         </View>
     );
 };
@@ -211,6 +258,10 @@ const styles = StyleSheet.create({
     transactionLeft: {
         flexDirection: 'row',
         alignItems: 'center',
+        flex: 1,
+    },
+    transactionRight: {
+        alignItems: 'flex-end',
     },
     catIcon: {
         width: 40,
@@ -232,6 +283,13 @@ const styles = StyleSheet.create({
     transAmount: {
         fontSize: 16,
         fontWeight: 'bold',
+        marginBottom: 5,
+    },
+    actionButtons: {
+        flexDirection: 'row',
+    },
+    iconButton: {
+        marginLeft: 15,
     },
     fabContainer: {
         position: 'absolute',
