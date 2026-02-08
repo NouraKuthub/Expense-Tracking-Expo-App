@@ -1,13 +1,10 @@
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth, isConfigured } from "../firebaseConfig";
 import { setUser, setLoading, setError } from "../store/authSlice";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Mock Data
-const MOCK_USER = {
-    uid: "mock-user-123",
-    email: "test@example.com",
-    displayName: "Test User"
-};
+// Mock Data Key
+const MOCK_USERS_KEY = 'mock_users_store';
 
 const simulateDelay = async () => new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -15,20 +12,38 @@ export const register = (email, password) => async (dispatch) => {
     dispatch(setLoading(true));
     try {
         if (!isConfigured) {
-            console.warn("Firebase not configured, using MOCK");
+            console.warn("Firebase not configured, using MOCK with AsyncStorage");
             await simulateDelay();
-            dispatch(setUser({ ...MOCK_USER, email }));
+
+            // Get existing users
+            const existingUsersJson = await AsyncStorage.getItem(MOCK_USERS_KEY);
+            const existingUsers = existingUsersJson ? JSON.parse(existingUsersJson) : {};
+
+            if (existingUsers[email]) {
+                dispatch(setError("User already exists (Mock)"));
+                return;
+            }
+
+            // Save new user
+            const newUser = {
+                uid: `mock-user-${Date.now()}`,
+                email,
+                password, // In a real app, never store passwords plain text!
+                displayName: "Test User"
+            };
+
+            existingUsers[email] = newUser;
+            await AsyncStorage.setItem(MOCK_USERS_KEY, JSON.stringify(existingUsers));
+
+            // Return user info (excluding password)
+            const { password: _, ...userInfo } = newUser;
+            dispatch(setUser(userInfo));
             return;
         }
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         dispatch(setUser(userCredential.user));
     } catch (error) {
         dispatch(setError(error.message));
-        if (!isConfigured) {
-            // If firebase fails (e.g. valid config but network error), fallback mock for testing/dev? 
-            // No, if isConfigured is true, we expect real auth.
-            // If isConfigured is false, we already returned mock.
-        }
     }
 };
 
@@ -36,11 +51,17 @@ export const login = (email, password) => async (dispatch) => {
     dispatch(setLoading(true));
     try {
         if (!isConfigured) {
-            console.warn("Firebase not configured, using MOCK");
+            console.warn("Firebase not configured, using MOCK with AsyncStorage");
             await simulateDelay();
-            // Simple mock validation
-            if (password === "password") {
-                dispatch(setUser({ ...MOCK_USER, email }));
+
+            // Get users
+            const existingUsersJson = await AsyncStorage.getItem(MOCK_USERS_KEY);
+            const existingUsers = existingUsersJson ? JSON.parse(existingUsersJson) : {};
+            const user = existingUsers[email];
+
+            if (user && user.password === password) {
+                const { password: _, ...userInfo } = user;
+                dispatch(setUser(userInfo));
             } else {
                 dispatch(setError("Invalid credentials"));
             }

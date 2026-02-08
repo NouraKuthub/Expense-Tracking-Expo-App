@@ -12,9 +12,18 @@ const SignupScreen = ({ navigation }) => {
     const dispatch = useDispatch();
     const { loading, error } = useSelector((state) => state.auth);
 
+    const isValidEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
     const handleSignup = async () => {
         if (!email || !password || !confirmPassword) {
             Alert.alert("Error", "Please fill in all fields");
+            return;
+        }
+        if (!isValidEmail(email)) {
+            Alert.alert("Error", "Please enter a valid email address");
             return;
         }
         if (password !== confirmPassword) {
