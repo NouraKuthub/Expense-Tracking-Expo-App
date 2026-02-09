@@ -21,11 +21,10 @@ const AddTransactionScreen = ({ route, navigation }) => {
     const { loading } = useSelector(state => state.transactions);
 
     const pickImage = async () => {
-        // No permissions request is necessary for launching the image library
+        // Updated: No cropping, allow full image
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [4, 3],
+            allowsEditing: false, // Set to false to allow full image
             quality: 1,
         });
 
@@ -41,10 +40,14 @@ const AddTransactionScreen = ({ route, navigation }) => {
         setExtracting(true);
         try {
             const extractedValue = await extractAmountFromImage(uri);
-            setAmount(extractedValue.toString());
-            Alert.alert("OCR Success", `Extracted amount: ${extractedValue}`);
+            if (extractedValue) {
+                setAmount(extractedValue.toString());
+                Alert.alert("OCR Success", `Extracted amount: ${extractedValue}\nPlease verify and correct if needed.`);
+            } else {
+                Alert.alert("OCR Result", "Could not detect a clear total amount. Please enter manually.");
+            }
         } catch (e) {
-            Alert.alert("OCR Failed", "Could not extract amount.");
+            Alert.alert("OCR Failed", "Could not extract amount. Please check internet connection or try another image.");
         } finally {
             setExtracting(false);
         }
